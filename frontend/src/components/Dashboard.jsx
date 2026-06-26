@@ -5,7 +5,9 @@ import DominanceHeatmap from "./DominanceHeatmap";
 import ScenarioSimulator from "./ScenarioSimulator";
 import FanEngagement from "./FanEngagement";
 
-const API_BASE = "http://localhost:8000/api";
+const API_BASE = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+  ? "http://localhost:8000/api"
+  : "/api";
 
 export default function Dashboard({ onBackToLanding, theme, toggleTheme }) {
   const [matches, setMatches] = useState([]);
