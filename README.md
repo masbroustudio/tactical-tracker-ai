@@ -1,4 +1,4 @@
-# Tactical Momentum Tracker ⚽📈
+# Tactical Momentum Tracker ⚽📈 (https://teamtrack.my.id)
 
 **Tactical Momentum Tracker** is a real-time sports analytics platform designed to detect, quantify, and visualize match momentum shifts. Built for the **Build with Gemini Devpost Hackathon**, it provides head coaches with live tactical insights, calculates dynamic victory probabilities, simulates "what-if" scenarios, and prompts fan engagement via simulated Discord bot alerts.
 
@@ -17,7 +17,7 @@ Tactical Momentum Tracker provides a premium suite of tools for sports analysts,
 6. **Export PDF Report**: A clean, vector-grade print layout engine that builds a comprehensive, beautiful tactical PDF summarizing simulated events, AI insights, and final win probability.
 7. **World Cup 2026 Center**: Live standings, fixture grids, and a real-time sync button pulling match data directly from the World Cup 2026 API.
 8. **User vs AI Manager Game**: An interactive simulation page where users can manage their chosen country in the World Cup 2026 against AI, configure attacking/defensive styles, adjust mentalities mid-match, and view a detailed post-match coaching report by Gemini.
-9. **Gemini API Limit WhatsApp Reporter**: Automatically detects when Gemini API limits or quotas are exceeded, falling back to a rule-based engine and prompting the user with a notification popup containing a direct WhatsApp report button to the developer at `+6282166964069`.
+9. **Gemini API Limit WhatsApp Reporter**: Automatically detects when Gemini API limits or quotas are exceeded, falling back to a rule-based engine and prompting the user with a notification popup containing a direct WhatsApp report button to the developer.
 
 ## 🛠️ How we built it
 We constructed this project as a monorepo splitting logic between:
