@@ -52,13 +52,14 @@ if (![string]::IsNullOrEmpty($GeminiKey)) {
       --platform managed `
       --region $Region `
       --allow-unauthenticated `
-      --set-env-vars GEMINI_API_KEY="$GeminiKey"
+      --set-env-vars GEMINI_API_KEY="$GeminiKey",USE_FIREBASE="true",FIREBASE_PROJECT_ID="$ProjectId"
 } else {
     gcloud run deploy $ServiceName `
       --image gcr.io/$ProjectId/$ServiceName `
       --platform managed `
       --region $Region `
-      --allow-unauthenticated
+      --allow-unauthenticated `
+      --set-env-vars USE_FIREBASE="true",FIREBASE_PROJECT_ID="$ProjectId"
 }
 
 # Get deployed URL

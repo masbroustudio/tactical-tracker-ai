@@ -1,0 +1,18 @@
+# .gcloudignore
+# This file specifies files to be ignored by gcloud builds submit.
+# It inherits from .gitignore but explicitly whitelists .env files so they are available in Cloud Build.
+
+.git
+.gitignore
+
+# Ignore local caches and logs
+node_modules/
+venv/
+backend/venv/
+backend/tracker.db
+backend/app/__pycache__/
+backend/app/serviceAccountKey.json
+
+# Whitelist environment files so Vite compile-time env variables are baked in during docker build
+!frontend/.env
+!backend/.env

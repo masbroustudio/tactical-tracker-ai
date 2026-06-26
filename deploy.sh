@@ -56,13 +56,14 @@ if [ -n "$GEMINI_API_KEY" ]; then
       --platform managed \
       --region $REGION \
       --allow-unauthenticated \
-      --set-env-vars GEMINI_API_KEY="$GEMINI_API_KEY"
+      --set-env-vars GEMINI_API_KEY="$GEMINI_API_KEY",USE_FIREBASE="true",FIREBASE_PROJECT_ID="$PROJECT_ID"
 else
     gcloud run deploy $SERVICE_NAME \
       --image gcr.io/$PROJECT_ID/$SERVICE_NAME \
       --platform managed \
       --region $REGION \
-      --allow-unauthenticated
+      --allow-unauthenticated \
+      --set-env-vars USE_FIREBASE="true",FIREBASE_PROJECT_ID="$PROJECT_ID"
 fi
 
 # Get deployed URL
