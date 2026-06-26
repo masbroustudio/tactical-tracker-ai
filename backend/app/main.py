@@ -12,6 +12,8 @@ from app.schemas import (
 )
 from app.calculator import calculate_momentum_timeline
 from app.recommender import generate_tactical_insights, generate_manager_analysis
+from app.firebase_service import publish_match_to_firebase
+
 
 app = FastAPI(title="Tactical Momentum Tracker API")
 
@@ -35,6 +37,17 @@ def get_db():
 @app.on_event("startup")
 def on_startup():
     init_db()
+    # Sync initial SQLite matches to Firestore if Firebase is enabled
+    db = SessionLocal()
+    try:
+        from app.database import Match
+        for match in db.query(Match).all():
+            publish_match_to_firebase(match.id, db)
+    except Exception as e:
+        import logging
+        logging.getLogger("tracker").warning(f"Initial startup sync to Firebase failed: {e}")
+    finally:
+        db.close()
 
 @app.get("/api/matches", response_model=List[MatchResponse])
 def get_matches(db: Session = Depends(get_db)):
@@ -71,6 +84,7 @@ def sync_worldcup_matches(db: Session = Depends(get_db)):
     # Only sync games that have started or are completed, or a subset of major group games
     # to avoid overloading the DB with empty future games.
     synced_count = 0
+    synced_match_ids = []
     for game in games:
         # Extract teams and labels
         home_team = game.get("home_team_name_en") or game.get("home_team_label")
@@ -249,9 +263,12 @@ def sync_worldcup_matches(db: Session = Depends(get_db)):
             )
             db.add(db_event)
         
+        synced_match_ids.append(match_id)
         synced_count += 1
     
     db.commit()
+    for m_id in synced_match_ids:
+        publish_match_to_firebase(m_id, db)
     return {"status": "success", "message": f"Successfully synchronized {synced_count} World Cup 2026 matches."}
 
 @app.get("/api/matches/{match_id}", response_model=MatchDetailResponse)
@@ -293,6 +310,7 @@ def ingest_event(match_id: str, event_in: EventCreate, db: Session = Depends(get
             match.away_score += 1
             
     db.commit()
+    publish_match_to_firebase(match_id, db)
     db.refresh(db_event)
     return db_event
 

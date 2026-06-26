@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Sparkles, Activity, Map, Play, ShieldAlert, Award, FileText, Sun, Moon, ArrowRight, TrendingUp } from "lucide-react";
+import { Sparkles, Activity, Map, Play, ShieldAlert, Award, FileText, Sun, Moon, ArrowRight, TrendingUp, LogOut } from "lucide-react";
+import { useFirebase } from "../firebase";
 
-export default function LandingPage({ onEnterDashboard, theme, toggleTheme }) {
+export default function LandingPage({ onEnterDashboard, theme, toggleTheme, user, onLogout }) {
   const [passingStep, setPassingStep] = useState(0);
 
   // Animate a simple soccer passing build-up on the landing page pitch
@@ -48,9 +49,24 @@ export default function LandingPage({ onEnterDashboard, theme, toggleTheme }) {
             {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           </button>
           
-          <button onClick={onEnterDashboard} className="btn-secondary" style={{ padding: "8px 16px", fontSize: "13px" }}>
-            Direct Access
-          </button>
+          {useFirebase ? (
+            user ? (
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{user.email}</span>
+                <button onClick={onLogout} className="btn-secondary" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", fontSize: "13px" }}>
+                  <LogOut size={14} /> Log Out
+                </button>
+              </div>
+            ) : (
+              <button onClick={onEnterDashboard} className="landing-cta-btn" style={{ padding: "8px 16px", fontSize: "13px", margin: 0 }}>
+                Sign In
+              </button>
+            )
+          ) : (
+            <button onClick={onEnterDashboard} className="btn-secondary" style={{ padding: "8px 16px", fontSize: "13px" }}>
+              Direct Access
+            </button>
+          )}
         </div>
       </nav>
 

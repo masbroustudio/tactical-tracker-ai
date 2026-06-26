@@ -8,6 +8,10 @@ venv/
 ENV/
 env/
 .env
+serviceAccountKey.json
+*.json.key
+key.json
+
 
 # Database files
 *.db

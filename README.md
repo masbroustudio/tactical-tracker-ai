@@ -65,25 +65,29 @@ C:\dev\team-trackerai\
 ├── backend/
 │   ├── app/
 │   │   ├── __init__.py
-│   │   ├── main.py              # FastAPI REST endpoints
+│   │   ├── main.py              # FastAPI REST endpoints with Firebase hooks
 │   │   ├── database.py          # SQLite schema, tables & seed records
 │   │   ├── schemas.py           # Pydantic schemas for data validation
 │   │   ├── calculator.py        # Momentum weighted logic & probability calculations
-│   │   └── recommender.py       # Gemini API client & Heuristic fallback engine
+│   │   ├── recommender.py       # Gemini API client & Heuristic fallback engine
+│   │   └── firebase_service.py  # Firebase Admin SDK initialization & sync logic
+│   ├── .env.example             # Example backend environment config
 │   ├── requirements.txt         # Python package dependencies
 │   └── run.py                   # Backend entrypoint (port 8000)
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── Dashboard.jsx    # Central UI coordinator
+│   │   │   ├── Dashboard.jsx    # Central UI coordinator with Firestore listener
 │   │   │   ├── MatchTimeline.jsx# D3-drawn interactive momentum graph
 │   │   │   ├── DominanceHeatmap.jsx # SVG field coordinate mapping
 │   │   │   ├── ScenarioSimulator.jsx # Simulator form & hypothetical queue
 │   │   │   ├── FanEngagement.jsx # Discord alert feeds & predictive polls
 │   │   │   └── ManagerGame.jsx  # User vs AI football manager simulation game
+│   │   ├── firebase.js          # Web client Firebase configuration & init
 │   │   ├── App.jsx              # Main React file
 │   │   ├── index.css            # Dark tactical CSS styling
 │   │   └── App.css              # Cleared config
+│   ├── .env.example             # Example frontend environment config
 │   ├── index.html               # Main HTML entry with SEO metadata
 │   └── package.json             # NPM package dependencies
 └── README.md
@@ -134,3 +138,73 @@ C:\dev\team-trackerai\
     npm run dev
     ```
     Open your browser and navigate to `http://localhost:5173`.
+
+---
+
+## 🔥 Firebase Real-time Integration & Setup
+
+The application features a hybrid architecture: it uses SQLite locally as the primary database and Google Gemini for AI analysis, but seamlessly replicates live match updates, events, and calculated momentum timelines to **Cloud Firestore** for real-time frontend updates (no polling required).
+
+### 📋 Prerequisites & Manual Setup on Firebase Console
+
+Since Firebase projects require Google Authentication, you must first set up your project manually on the Firebase Console:
+
+1. **Create a Firebase Project**:
+   - Go to [Firebase Console](https://console.firebase.google.com/).
+   - Click **Add Project**, name it (e.g. `tactical-momentum-tracker`), and click continue.
+2. **Add a Web App**:
+   - In the project overview page, click the **Web icon (</>)** to register a new web app.
+   - Name your app and click **Register app**.
+   - Copy the `firebaseConfig` credentials object provided.
+3. **Enable Firebase Authentication**:
+   - Go to **Authentication** in the left sidebar, click **Get Started**.
+   - Under the **Sign-in method** tab, enable the **Email/Password** provider.
+   - Also enable the **Google** provider (Gmail login), select your project support email, and save.
+4. **Enable Cloud Firestore**:
+   - Go to **Firestore Database** in the left sidebar and click **Create Database**.
+   - Choose a location and select **Start in test mode** for development (so anyone can read/write during testing). Click create.
+5. **Generate Service Account Private Key (for Backend)**:
+   - Go to **Project Settings** (gear icon) -> **Service Accounts**.
+   - Click **Generate new private key**.
+   - Download the JSON file, rename it to `serviceAccountKey.json`, and place it in the `backend/app/` folder.
+
+### ⚙️ Local Configuration & Environments
+
+#### A. Frontend Configuration
+1. In the `frontend` directory, create a `.env` file from the example:
+   ```bash
+   cp .env.example .env
+   ```
+2. Set the variables and enable Firebase:
+   ```env
+   VITE_USE_FIREBASE=true
+   VITE_FIREBASE_API_KEY=your_copied_api_key
+   VITE_FIREBASE_AUTH_DOMAIN=your_copied_auth_domain
+   VITE_FIREBASE_PROJECT_ID=your_copied_project_id
+   VITE_FIREBASE_STORAGE_BUCKET=your_copied_storage_bucket
+   VITE_FIREBASE_MESSAGING_SENDER_ID=your_copied_messaging_sender_id
+   VITE_FIREBASE_APP_ID=your_copied_app_id
+   ```
+
+#### B. Backend Configuration
+1. In the `backend` directory, create a `.env` file:
+   ```bash
+   cp .env.example .env
+   ```
+2. Set the variables and enable Firebase:
+   ```env
+   USE_FIREBASE=true
+   FIREBASE_PROJECT_ID=your_firebase_project_id
+   FIREBASE_SERVICE_ACCOUNT_KEY=app/serviceAccountKey.json
+   ```
+
+### 🧪 Local Testing & Verification
+
+1. Make sure your virtual environment is active in the `backend` folder.
+2. Install the new dependencies:
+   - **Backend**: `pip install -r requirements.txt` (installs `firebase-admin`)
+   - **Frontend**: npm packages are already configured.
+3. Run the Backend API (`python run.py`). During startup, the app will automatically log in to Firebase using your service account and sync existing SQLite matches to your Firestore collection `matches`.
+4. Run the React Frontend (`npm run dev`).
+5. Open your browser and navigate to `http://localhost:5173`.
+6. Open your Firestore Console. Try ingesting a live event on the dashboard or clicking **Sync World Cup**—you will immediately see documents updating in real-time in the Firestore console, and the React frontend will render the changes instantly without any polling!

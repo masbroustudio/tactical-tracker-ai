@@ -1,18 +1,22 @@
-import React, { useState, useEffect } from "react";
-import { Activity, Tv, Flame, RefreshCw, PlusCircle, AlertCircle, Globe, FileText, Sparkles, Sun, Moon } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Activity, Tv, Flame, RefreshCw, PlusCircle, AlertCircle, Globe, FileText, Sparkles, Sun, Moon, LogOut } from "lucide-react";
 import MatchTimeline from "./MatchTimeline";
 import DominanceHeatmap from "./DominanceHeatmap";
 import ScenarioSimulator from "./ScenarioSimulator";
 import FanEngagement from "./FanEngagement";
 import ManagerGame from "./ManagerGame";
+import { doc, onSnapshot } from "firebase/firestore";
+import { db, useFirebase } from "../firebase";
+
 
 
 const API_BASE = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
   ? "http://localhost:8000/api"
   : "/api";
 
-export default function Dashboard({ onBackToLanding, theme, toggleTheme }) {
+export default function Dashboard({ onBackToLanding, theme, toggleTheme, user, onLogout }) {
   const [matches, setMatches] = useState([]);
+  const unsubscribeRef = useRef(null);
   const [activeMatchId, setActiveMatchId] = useState("");
   const [matchDetail, setMatchDetail] = useState(null);
   const [momentumData, setMomentumData] = useState(null);
@@ -112,15 +116,16 @@ export default function Dashboard({ onBackToLanding, theme, toggleTheme }) {
   useEffect(() => {
     if (!activeMatchId) return;
     loadMatchData(activeMatchId);
+
+    return () => {
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+      }
+    };
   }, [activeMatchId]);
 
-  const loadMatchData = async (matchId) => {
-    setLoading(true);
-    setError("");
-    setIsSimulated(false);
-    setActiveSimulatedEvents([]);
-    setActiveSimulatedHeatPoints([]);
-    setHoveredEventId(null);
+  const loadMatchDataHttp = async (matchId) => {
     try {
       // Fetch details
       const detailRes = await fetch(`${API_BASE}/matches/${matchId}`);
@@ -137,7 +142,74 @@ export default function Dashboard({ onBackToLanding, theme, toggleTheme }) {
     } catch (err) {
       console.error(err);
       setError("Failed to fetch match metrics.");
-    } finally {
+    }
+  };
+
+  const loadMatchData = async (matchId) => {
+    setLoading(true);
+    setError("");
+    setIsSimulated(false);
+    setActiveSimulatedEvents([]);
+    setActiveSimulatedHeatPoints([]);
+    setHoveredEventId(null);
+
+    // Clean up previous subscription if any
+    if (unsubscribeRef.current) {
+      unsubscribeRef.current();
+      unsubscribeRef.current = null;
+    }
+
+    if (useFirebase && db) {
+      try {
+        const docRef = doc(db, "matches", matchId);
+        unsubscribeRef.current = onSnapshot(docRef, (snapshot) => {
+          setLoading(false);
+          if (snapshot.exists()) {
+            const data = snapshot.data();
+            
+            // Map details
+            setMatchDetail({
+              id: data.id,
+              home_team: data.home_team,
+              away_team: data.away_team,
+              tournament: data.tournament,
+              date: data.date,
+              status: data.status,
+              home_score: data.home_score,
+              away_score: data.away_score,
+              events: data.events || []
+            });
+
+            // Map momentum
+            if (data.momentum) {
+              setMomentumData({
+                match_id: data.id,
+                home_team: data.home_team,
+                away_team: data.away_team,
+                current_home_probability: data.momentum.current_home_probability,
+                current_away_probability: data.momentum.current_away_probability,
+                current_draw_probability: data.momentum.current_draw_probability,
+                timeline: data.momentum.timeline || []
+              });
+            }
+          } else {
+            console.warn(`Firestore document for match ${matchId} does not exist yet. Falling back to HTTP.`);
+            loadMatchDataHttp(matchId);
+          }
+        }, (err) => {
+          console.error("Firestore snapshot error:", err);
+          loadMatchDataHttp(matchId);
+        });
+
+        // Load insights separately
+        loadInsights(matchId);
+      } catch (err) {
+        console.error("Failed to setup Firestore listener:", err);
+        await loadMatchDataHttp(matchId);
+        setLoading(false);
+      }
+    } else {
+      await loadMatchDataHttp(matchId);
       setLoading(false);
     }
   };
@@ -715,6 +787,29 @@ export default function Dashboard({ onBackToLanding, theme, toggleTheme }) {
           >
             {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
           </button>
+          
+          {useFirebase && user && (
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "11px", color: "var(--text-secondary)", maxWidth: "120px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={user.email}>
+                {user.email}
+              </span>
+              <button 
+                onClick={onLogout} 
+                className="btn-secondary" 
+                style={{ 
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center",
+                  width: "38px",
+                  height: "38px",
+                  padding: "0"
+                }}
+                title="Log Out"
+              >
+                <LogOut size={16} />
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
