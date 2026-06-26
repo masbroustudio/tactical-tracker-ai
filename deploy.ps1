@@ -8,7 +8,7 @@ $Region = "us-central1"
 
 # Check if gcloud is installed
 if (!(Get-Command gcloud -ErrorAction SilentlyContinue)) {
-    Write-Error "❌ Error: gcloud CLI is not installed or not in PATH. Please install Google Cloud SDK."
+    Write-Error "Error: gcloud CLI is not installed or not in PATH. Please install Google Cloud SDK."
     exit 1
 }
 
@@ -16,36 +16,33 @@ if (!(Get-Command gcloud -ErrorAction SilentlyContinue)) {
 $ProjectId = gcloud config get-value project 2>$null
 
 if ([string]::IsNullOrEmpty($ProjectId) -or $ProjectId -eq "(unset)") {
-    Write-Warning "⚠️ Warning: No default Google Cloud project is configured in gcloud CLI."
+    Write-Warning "Warning: No default Google Cloud project is configured in gcloud CLI."
     $ProjectId = Read-Host "Please enter your GCP Project ID"
     if ([string]::IsNullOrEmpty($ProjectId)) {
-        Write-Error "❌ Error: GCP Project ID is required."
+        Write-Error "Error: GCP Project ID is required."
         exit 1
     }
     gcloud config set project $ProjectId
 }
 
-Write-Host "=====================================================================" -ForegroundColor Cyan
-Write-Host "🚀 DEPLOYING TACTICAL MOMENTUM TRACKER TO GOOGLE CLOUD RUN" -ForegroundColor Cyan
-Write-Host "=====================================================================" -ForegroundColor Cyan
+Write-Host "--- DEPLOYING TACTICAL MOMENTUM TRACKER TO GOOGLE CLOUD RUN ---"
 Write-Host "Project ID   : $ProjectId"
 Write-Host "Service Name : $ServiceName"
 Write-Host "Region       : $Region"
-Write-Host "=====================================================================" -ForegroundColor Cyan
 
 # Prompt for GEMINI_API_KEY if not already set in environment
 $GeminiKey = $env:GEMINI_API_KEY
 if ([string]::IsNullOrEmpty($GeminiKey)) {
-    Write-Host "💡 Note: To use the Gemini LLM simulation, you need an API key."
+    Write-Host "Note: To use the Gemini LLM simulation, you need an API key."
     $GeminiKey = Read-Host -Prompt "Enter your GEMINI_API_KEY (leave empty to skip & use offline fallbacks)"
 }
 
 # Step 1: Build the docker image in Google Cloud Build
-Write-Host "📦 Step 1: Building container image using Google Cloud Build..." -ForegroundColor Yellow
+Write-Host "Step 1: Building container image using Google Cloud Build..."
 gcloud builds submit --tag gcr.io/$ProjectId/$ServiceName .
 
 # Step 2: Deploy to Cloud Run
-Write-Host "⚡ Step 2: Deploying image to Google Cloud Run..." -ForegroundColor Yellow
+Write-Host "Step 2: Deploying image to Google Cloud Run..."
 if (![string]::IsNullOrEmpty($GeminiKey)) {
     gcloud run deploy $ServiceName `
       --image gcr.io/$ProjectId/$ServiceName `
@@ -65,7 +62,5 @@ if (![string]::IsNullOrEmpty($GeminiKey)) {
 # Get deployed URL
 $ServiceUrl = gcloud run services describe $ServiceName --platform managed --region $Region --format 'value(status.url)'
 
-Write-Host "=====================================================================" -ForegroundColor Green
-Write-Host "🎉 SUCCESS! Tactical Momentum Tracker is deployed." -ForegroundColor Green
-Write-Host "URL: $ServiceUrl" -ForegroundColor Green
-Write-Host "=====================================================================" -ForegroundColor Green
+Write-Host "SUCCESS! Tactical Momentum Tracker is deployed."
+Write-Host "URL: $ServiceUrl"

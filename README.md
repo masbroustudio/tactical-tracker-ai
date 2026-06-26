@@ -1,6 +1,6 @@
 # Tactical Momentum Tracker ⚽📈
 
-**Tactical Momentum Tracker** is a real-time sports analytics platform designed to detect, quantify, and visualize match momentum shifts. Built for the **AQX Sports Analytics Hackathon**, it provides head coaches with live tactical insights, calculates dynamic victory probabilities, simulates "what-if" scenarios, and prompts fan engagement via simulated Discord bot alerts.
+**Tactical Momentum Tracker** is a real-time sports analytics platform designed to detect, quantify, and visualize match momentum shifts. Built for the **Build with Gemini Devpost Hackathon**, it provides head coaches with live tactical insights, calculates dynamic victory probabilities, simulates "what-if" scenarios, and prompts fan engagement via simulated Discord bot alerts.
 
 ---
 
