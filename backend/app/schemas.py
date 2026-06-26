@@ -75,3 +75,36 @@ class TacticalInsightResponse(BaseModel):
     game_state_summary: str
     suggested_substitutions: List[str]
     suggested_formation_change: str
+    gemini_limit_exceeded: Optional[bool] = False
+
+
+# --- Manager Game Schemas ---
+class ManagerTactics(BaseModel):
+    formation: str
+    attack: str
+    defense: str
+    intensity: str
+
+class ManagerStats(BaseModel):
+    possession: int
+    shotsUser: int
+    shotsAI: int
+    cornersUser: int
+    cornersAI: int
+    foulsUser: int
+    foulsAI: int
+
+class ManagerAnalysisRequest(BaseModel):
+    userTeam: str
+    aiTeam: str
+    userScore: int
+    aiScore: int
+    userTactics: ManagerTactics
+    aiTactics: ManagerTactics
+    stats: ManagerStats
+    events: List[str]
+
+class ManagerAnalysisResponse(BaseModel):
+    analysis: str
+    gemini_limit_exceeded: Optional[bool] = False
+

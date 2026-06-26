@@ -4,6 +4,8 @@ import MatchTimeline from "./MatchTimeline";
 import DominanceHeatmap from "./DominanceHeatmap";
 import ScenarioSimulator from "./ScenarioSimulator";
 import FanEngagement from "./FanEngagement";
+import ManagerGame from "./ManagerGame";
+
 
 const API_BASE = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
   ? "http://localhost:8000/api"
@@ -21,6 +23,7 @@ export default function Dashboard({ onBackToLanding, theme, toggleTheme }) {
   const [loading, setLoading] = useState(false);
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [error, setError] = useState("");
+  const [showQuotaModal, setShowQuotaModal] = useState(false);
   const [activeTab, setActiveTab] = useState("match"); // 'match' or 'standings'
   const [groups, setGroups] = useState([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
@@ -145,6 +148,9 @@ export default function Dashboard({ onBackToLanding, theme, toggleTheme }) {
       const insightsRes = await fetch(`${API_BASE}/matches/${matchId}/insights`);
       const insightsData = await insightsRes.json();
       setInsights(insightsData);
+      if (insightsData && insightsData.gemini_limit_exceeded) {
+        setShowQuotaModal(true);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -271,6 +277,9 @@ export default function Dashboard({ onBackToLanding, theme, toggleTheme }) {
       if (res.ok) {
         const insightsData = await res.json();
         setInsights(insightsData);
+        if (insightsData && insightsData.gemini_limit_exceeded) {
+          setShowQuotaModal(true);
+        }
       }
     } catch (err) {
       console.error("Failed to load simulated insights:", err);
@@ -729,6 +738,12 @@ export default function Dashboard({ onBackToLanding, theme, toggleTheme }) {
         >
           🏆 World Cup 2026 Center
         </button>
+        <button 
+          onClick={() => setActiveTab("manager")} 
+          className={`tab-btn ${activeTab === "manager" ? "active" : ""}`}
+        >
+          🎮 Manager Game
+        </button>
 
         {activeTab === "match" && (
           <>
@@ -771,7 +786,7 @@ export default function Dashboard({ onBackToLanding, theme, toggleTheme }) {
         )}
       </div>
 
-      {activeTab === "match" ? (
+      {activeTab === "match" && (
         <div className="dashboard-grid">
           
           {/* Match Score & Status Header Panel */}
@@ -1060,7 +1075,9 @@ export default function Dashboard({ onBackToLanding, theme, toggleTheme }) {
             />
           </div>
         </div>
-      ) : (
+      )}
+
+      {activeTab === "standings" && (
         /* WORLD CUP 2026 CENTER VIEW */
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           <div className="glass-panel" style={{ display: "flex", flexDirection: "column", gap: "8px", background: "linear-gradient(135deg, rgba(16,185,129,0.05) 0%, rgba(59,130,246,0.05) 100%)" }}>
@@ -1322,6 +1339,81 @@ export default function Dashboard({ onBackToLanding, theme, toggleTheme }) {
           )}
         </div>
       )}
+
+      {activeTab === "manager" && (
+        <ManagerGame theme={theme} />
+      )}
+      <QuotaLimitModal isOpen={showQuotaModal} onClose={() => setShowQuotaModal(false)} />
+    </div>
+  );
+}
+
+function QuotaLimitModal({ isOpen, onClose }) {
+  if (!isOpen) return null;
+
+  const handleReport = () => {
+    const waUrl = "https://wa.me/6282166964069?text=" + encodeURIComponent("Halo Developer, saya mengalami limit pada model Gemini AI di aplikasi Tactical Tracker. Mohon bantuannya untuk memeriksa kuota API.");
+    window.open(waUrl, "_blank");
+  };
+
+  return (
+    <div style={{
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(0,0,0,0.7)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 9999,
+      backdropFilter: "blur(8px)"
+    }}>
+      <div className="glass-panel" style={{
+        maxWidth: "450px",
+        width: "90%",
+        padding: "24px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "16px",
+        border: "1px solid rgba(239, 68, 68, 0.4)",
+        boxShadow: "0 0 25px rgba(239, 68, 68, 0.2)",
+        textAlign: "center"
+      }}>
+        <div style={{ fontSize: "40px" }}>⚠️</div>
+        <h2 style={{ fontSize: "20px", color: "#f87171" }}>Gemini AI Limit Terlampaui</h2>
+        <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: "1.5" }}>
+          Batas penggunaan kuota API Gemini telah terlampaui. Sistem telah beralih ke analisis lokal cadangan agar Anda tetap dapat menganalisis taktik pertandingan tanpa terputus. Silakan laporkan masalah ini ke pengembang.
+        </p>
+        <div style={{ display: "flex", gap: "12px", marginTop: "8px" }}>
+          <button 
+            onClick={onClose} 
+            className="btn-secondary" 
+            style={{ flex: 1, padding: "10px" }}
+          >
+            Tutup
+          </button>
+          <button 
+            onClick={handleReport} 
+            className="btn-primary" 
+            style={{ 
+              flex: 1, 
+              padding: "10px", 
+              background: "#25D366", 
+              borderColor: "#25D366",
+              color: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px",
+              fontWeight: "600"
+            }}
+          >
+            💬 Laporkan (WhatsApp)
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

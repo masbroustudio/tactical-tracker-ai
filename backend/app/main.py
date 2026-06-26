@@ -8,10 +8,10 @@ from app.database import SessionLocal, init_db, Match, MatchEvent
 from app.schemas import (
     MatchResponse, MatchDetailResponse, EventCreate, EventResponse, 
     MomentumTimelineResponse, SimulationRequest, TacticalInsightResponse,
-    TacticalInsightRequest
+    TacticalInsightRequest, ManagerAnalysisRequest, ManagerAnalysisResponse
 )
 from app.calculator import calculate_momentum_timeline
-from app.recommender import generate_tactical_insights
+from app.recommender import generate_tactical_insights, generate_manager_analysis
 
 app = FastAPI(title="Tactical Momentum Tracker API")
 
@@ -426,6 +426,14 @@ def auto_simulate_match(match_id: str, db: Session = Depends(get_db)):
         "events": sim_data.get("events", []),
         "heat_points": sim_data.get("heat_points", [])
     }
+
+@app.post("/api/manager/analyze", response_model=ManagerAnalysisResponse)
+def analyze_manager_match(req: ManagerAnalysisRequest):
+    """
+    Analyzes a completed Manager Game match and returns a structured coaching report.
+    Uses Gemini API or a local fallback.
+    """
+    return generate_manager_analysis(req)
 
 @app.get("/api/matches/{match_id}/insights", response_model=TacticalInsightResponse)
 def get_insights(match_id: str, db: Session = Depends(get_db)):

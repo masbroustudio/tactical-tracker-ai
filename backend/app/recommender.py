@@ -3,7 +3,8 @@ import json
 import logging
 from typing import List, Dict, Any
 import google.generativeai as genai
-from app.schemas import TacticalInsightResponse
+from app.schemas import TacticalInsightResponse, ManagerAnalysisRequest, ManagerAnalysisResponse
+
 
 logger = logging.getLogger("tracker")
 
@@ -62,6 +63,7 @@ def generate_tactical_insights(
     Respond ONLY with the raw JSON object. Do not include markdown code block formatting (like ```json).
     """
 
+    limit_exceeded = False
     if API_KEY:
         try:
             model = genai.GenerativeModel("gemini-1.5-flash")
@@ -76,15 +78,18 @@ def generate_tactical_insights(
                 recommendation=data.get("recommendation", "Adjust mid-block spacing and control tempo."),
                 game_state_summary=data.get("game_state_summary", f"Balanced state in {current_minute}' minute."),
                 suggested_substitutions=data.get("suggested_substitutions", ["Sub 1", "Sub 2"]),
-                suggested_formation_change=data.get("suggested_formation_change", "No change suggested.")
+                suggested_formation_change=data.get("suggested_formation_change", "No change suggested."),
+                gemini_limit_exceeded=False
             )
         except Exception as e:
             logger.error(f"Gemini API request failed: {e}. Falling back to heuristic insights.")
-            # Fall through to fallback
+            err_msg = str(e).lower()
+            if any(k in err_msg for k in ["429", "resourceexhausted", "quota", "limit", "exhausted"]):
+                limit_exceeded = True
 
     # Heuristic fallback engine based on game state
     return _generate_heuristic_insights(
-        match_id, home_team, away_team, home_score, away_score, current_minute, recent_momentum, events, is_simulated_scenario
+        match_id, home_team, away_team, home_score, away_score, current_minute, recent_momentum, events, is_simulated_scenario, gemini_limit_exceeded=limit_exceeded
     )
 
 def _generate_heuristic_insights(
@@ -96,7 +101,8 @@ def _generate_heuristic_insights(
     current_minute: int,
     recent_momentum: float,
     events: List[Any],
-    is_simulated_scenario: bool = False
+    is_simulated_scenario: bool = False,
+    gemini_limit_exceeded: bool = False
 ) -> TacticalInsightResponse:
     """
     Deterministic rule-based tactical engine serving as high-fidelity mock fallback.
@@ -187,7 +193,8 @@ def _generate_heuristic_insights(
         recommendation=rec,
         game_state_summary=summary,
         suggested_substitutions=subs,
-        suggested_formation_change=formation
+        suggested_formation_change=formation,
+        gemini_limit_exceeded=gemini_limit_exceeded
     )
 
 def generate_auto_simulation_events(
@@ -450,3 +457,95 @@ def _generate_procedural_simulation_events(
         "events": sorted(sim_events, key=lambda x: (x["minute"], x["second"])),
         "heat_points": sorted(sim_heat, key=lambda h: h["minute"])
     }
+
+def generate_manager_analysis(req: ManagerAnalysisRequest) -> ManagerAnalysisResponse:
+    """
+    Calls the Gemini API to analyze the finished manager match and produce a detailed coaching analysis.
+    Falls back to a rule-based post-match summary if the API is configured/key is missing or fails.
+    """
+    chr_events = "\n".join(req.events) if req.events else "No major events recorded."
+    
+    prompt = f"""
+    You are an elite football tactical coach. Analyze the completed match between the user's team and the AI team in this Football Manager simulation.
+    
+    Match details:
+    - User Team: {req.userTeam} ({req.userScore} goals)
+    - AI Team: {req.aiTeam} ({req.aiScore} goals)
+    
+    User Tactics:
+    - Formation: {req.userTactics.formation}
+    - Attacking Style: {req.userTactics.attack}
+    - Defensive Block: {req.userTactics.defense}
+    - Mentality: {req.userTactics.intensity}
+    
+    AI Tactics:
+    - Formation: {req.aiTactics.formation}
+    - Attacking Style: {req.aiTactics.attack}
+    - Defensive Block: {req.aiTactics.defense}
+    - Mentality: {req.aiTactics.intensity}
+    
+    Match Statistics:
+    - Possession: {req.userTeam} {req.stats.possession}% vs {100 - req.stats.possession}% {req.aiTeam}
+    - Shots: {req.userTeam} {req.stats.shotsUser} vs {req.stats.shotsAI} {req.aiTeam}
+    - Corners: {req.userTeam} {req.stats.cornersUser} vs {req.stats.cornersAI} {req.aiTeam}
+    - Fouls: {req.userTeam} {req.stats.foulsUser} vs {req.stats.foulsAI} {req.aiTeam}
+    
+    Chronological Match Events:
+    {chr_events}
+    
+    Write a highly detailed, professional, and engaging post-match analysis (coaching report) of about 3-4 paragraphs.
+    In the report, you must:
+    1. Summarize the outcome and how the tactics of both teams interacted (e.g. how the user's {req.userTactics.attack} with a {req.userTactics.formation} match up against the AI's {req.aiTactics.formation} {req.aiTactics.attack}).
+    2. Highlight critical events/turning points from the event log (e.g. goals, cards, saves).
+    3. Evaluate the user's strategic choices (formation, intensity, etc.) and give tactical recommendations on what they could have done better or why their approach succeeded.
+    4. Keep the tone insightful, tactical, and encouraging, like a professional sporting director or assistant manager.
+    
+    Provide your response as a plain text report without any JSON, markdown code block wrappers, or other formatting.
+    """
+
+    limit_exceeded = False
+    if API_KEY:
+        try:
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            response = model.generate_content(prompt)
+            return ManagerAnalysisResponse(analysis=response.text.strip(), gemini_limit_exceeded=False)
+        except Exception as e:
+            logger.error(f"Gemini API manager analysis failed: {e}. Falling back to heuristic.")
+            err_msg = str(e).lower()
+            if any(k in err_msg for k in ["429", "resourceexhausted", "quota", "limit", "exhausted"]):
+                limit_exceeded = True
+
+    # Heuristic Fallback
+    outcome = "drawn"
+    if req.userScore > req.aiScore:
+        outcome = "won"
+    elif req.userScore < req.aiScore:
+        outcome = "lost"
+        
+    analysis = (
+        f"TACTICAL POST-MATCH REPORT: {req.userTeam} vs {req.aiTeam} ({req.userScore} - {req.aiScore})\\n\\n"
+        f"Your tactical selection of a {req.userTactics.formation} employing a {req.userTactics.attack} style "
+        f"collided with {req.aiTeam}'s {req.aiTactics.formation} system using {req.aiTactics.attack}. "
+        f"You finished the match with {req.stats.possession}% possession and registered {req.stats.shotsUser} shots, "
+        f"while conceding {req.stats.shotsAI} shots to the AI.\\n\\n"
+    )
+    if outcome == "won":
+        analysis += (
+            f"Your {req.userTactics.intensity} approach successfully unlocked their {req.aiTactics.defense} defensive setup. "
+            f"By executing a {req.userTactics.attack} style, your team dominated critical areas of the pitch, leading to a deserved victory. "
+            f"Great tactical awareness!"
+        )
+    elif outcome == "lost":
+        analysis += (
+            f"Unfortunately, the AI's {req.aiTactics.attack} tactic managed to bypass your {req.userTactics.defense} defensive line. "
+            f"To counter this in future matches, consider matching their midfield shape or adjusting your defensive block. "
+            f"Changing your team mentality/intensity when trailing could help restore momentum."
+        )
+    else:
+        analysis += (
+            f"A tightly contested tactical stalemate. Both defensive structures remained highly disciplined, with your {req.userTactics.defense} "
+            f"canceling out their attack. In the next match, trying a more direct attacking style or adjusting formation to overload the "
+            f"opponent's weak flank could turn draws into wins."
+        )
+    return ManagerAnalysisResponse(analysis=analysis, gemini_limit_exceeded=limit_exceeded)
+
